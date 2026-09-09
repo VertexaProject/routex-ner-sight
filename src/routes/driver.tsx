@@ -9,6 +9,7 @@ import { NavigationBottomBar } from "@/components/routex/NavigationBottomBar";
 import { useVehicleSimulation } from "@/hooks/useVehicleSimulation";
 import { useI18n } from "@/lib/i18n";
 import { useRerouteWorkflow } from "@/lib/route-store";
+import { RoleGuard } from "@/components/routex/RoleGuard";
 import {
   fetchGoogleDrivingRoute,
   getPrimaryRouteData,
@@ -38,7 +39,11 @@ export const Route = createFileRoute("/driver")({
       },
     ],
   }),
-  component: DriverScreen,
+  component: () => (
+    <RoleGuard allowedRole="driver">
+      <DriverScreen />
+    </RoleGuard>
+  ),
 });
 
 function DriverScreen() {

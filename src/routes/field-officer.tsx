@@ -4,10 +4,18 @@ import { AppHeader } from "@/components/routex/AppHeader";
 import { Panel } from "@/components/routex/Panel";
 import { incidentTypes, incidents, severityLevels } from "@/lib/mock-data";
 import { useI18n } from "@/lib/i18n";
+import { RoleGuard } from "@/components/routex/RoleGuard";
+import { useAuth } from "@/lib/auth-store";
 import { Camera, MapPin, CheckCircle2, AlertTriangle, Send, Navigation, Loader2 } from "lucide-react";
 
-const N8N_WEBHOOK_URL =
-  (import.meta.env.VITE_N8N_WEBHOOK_URL as string) || "YOUR_N8N_PRODUCTION_WEBHOOK_URL";
+function getN8nWebhookUrl(): string {
+  if (typeof window !== "undefined") {
+    const local = localStorage.getItem("routex_n8n_webhook_url");
+    if (local) return local;
+    if ((window as any).__N8N_WEBHOOK_URL) return (window as any).__N8N_WEBHOOK_URL;
+  }
+  return (import.meta.env.VITE_N8N_WEBHOOK_URL as string) || "YOUR_N8N_PRODUCTION_WEBHOOK_URL";
+}
 
 function parseCoordinates(coordStr: string): { latitude: number; longitude: number } {
   const parts = coordStr.split(",");
@@ -42,7 +50,11 @@ export const Route = createFileRoute("/field-officer")({
       },
     ],
   }),
-  component: FieldOfficerScreen,
+  component: () => (
+    <RoleGuard allowedRole="field_officer">
+      <FieldOfficerScreen />
+    </RoleGuard>
+  ),
 });
 
 const inputClass =
@@ -61,6 +73,7 @@ const ROADS = ["NH-2", "NH-6", "NH-10", "NH-29", "NH-108"] as const;
 
 function FieldOfficerScreen() {
   const { t } = useI18n();
+  const { user } = useAuth();
   const [type, setType] = useState(incidentTypes[0]);
   const [roadId, setRoadId] = useState<string>(ROADS[0]);
   const [place, setPlace] = useState("");
@@ -83,18 +96,29 @@ function FieldOfficerScreen() {
 
     const payload = {
       incident_type: type,
-      road_id: roadId,
       latitude,
       longitude,
       severity,
       description,
       photo_url: photos[0]?.url || "",
-      reported_by: "Officer 12 · Kohima sector",
-      place: place || undefined,
+      reported_by: user?.name || "Officer 12 · Kohima sector",
+      road_id: roadId,
     };
 
+    const webhookUrl = getN8nWebhookUrl();
+
     try {
-      const response = await fetch(N8N_WEBHOOK_URL, {
+      if (
+        !webhookUrl ||
+        webhookUrl === "YOUR_N8N_PRODUCTION_WEBHOOK_URL" ||
+        !webhookUrl.startsWith("http")
+      ) {
+        throw new Error(
+          "n8n production webhook URL is not configured. Please configure VITE_N8N_WEBHOOK_URL in your .env file or environment."
+        );
+      }
+
+      const response = await fetch(webhookUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -111,7 +135,7 @@ function FieldOfficerScreen() {
       const message =
         err instanceof Error
           ? err.message
-          : "Failed to connect to n8n webhook. Please verify the URL and try again.";
+          : "Failed to connect to n8n webhook. Please verify the URL and network connection.";
       setSubmitError(message);
     } finally {
       setIsSubmitting(false);

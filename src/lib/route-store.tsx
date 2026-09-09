@@ -62,38 +62,7 @@ export const DEMO_ROUTE_COMPARISON: RouteComparisonData = {
   },
 };
 
-const INITIAL_NOTIFICATIONS: HazardNotification[] = [
-  {
-    id: "HAZ-PIPHEMA-01",
-    incidentType: "Active Landslide",
-    location: "Piphema, Nagaland",
-    road: "NH-2 (km 38)",
-    severity: "Critical",
-    affectedVehicles: ["Convoy RX-217 · K. Longkumer (Medical supplies)"],
-    affectedDeliveries: ["DL-3391 · Kohima Community Health Centre (+4h 20m)"],
-    recommendedAction: "Authorize reroute via NH-29 Medziphema Safe Bypass",
-    isRead: false,
-    timestamp: "15:02 IST (12 min ago)",
-    status: "pending_review",
-    details: "Slope instability sensors detected major debris runoff across both lanes at Piphema ridge.",
-    delayEstimate: "20–30 min holding time",
-  },
-  {
-    id: "HAZ-PASIGHAT-02",
-    incidentType: "Bridge Structural Damage",
-    location: "Pasighat, Arunachal Pradesh",
-    road: "NH-108 (km 14)",
-    severity: "Critical",
-    affectedVehicles: ["Convoy RX-104 (Relief rations)"],
-    affectedDeliveries: ["DL-3387 · Pasighat Depot (Halted)"],
-    recommendedAction: "Traffic diverted through NH-515 feeder road",
-    isRead: false,
-    timestamp: "14:15 IST (1 hr ago)",
-    status: "acknowledged",
-    details: "Abutment scouring reported by PWD engineers following flash rain.",
-    delayEstimate: "Indefinite closure",
-  },
-];
+const INITIAL_NOTIFICATIONS: HazardNotification[] = [];
 
 interface RerouteWorkflowContextType {
   notifications: HazardNotification[];
@@ -111,8 +80,8 @@ interface RerouteWorkflowContextType {
 }
 
 const RerouteWorkflowContext = createContext<RerouteWorkflowContextType>({
-  notifications: INITIAL_NOTIFICATIONS,
-  unreadCount: 2,
+  notifications: [],
+  unreadCount: 0,
   isRerouteAuthorized: false,
   selectedNotificationId: null,
   comparison: DEMO_ROUTE_COMPARISON,
@@ -129,9 +98,9 @@ const STORAGE_KEY_REROUTE = "routex_reroute_authorized";
 const STORAGE_KEY_NOTIFS = "routex_hazard_notifications";
 
 export function RerouteWorkflowProvider({ children }: { children: ReactNode }) {
-  const [notifications, setNotifications] = useState<HazardNotification[]>(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<HazardNotification[]>([]);
   const [isRerouteAuthorized, setIsRerouteAuthorized] = useState(false);
-  const [selectedNotificationId, setSelectedNotificationId] = useState<string | null>("HAZ-PIPHEMA-01");
+  const [selectedNotificationId, setSelectedNotificationId] = useState<string | null>(null);
   const [highlightedRoad, setHighlightedRoad] = useState<string | null>("nh2");
 
   // Load state from localStorage on client
@@ -144,7 +113,12 @@ export function RerouteWorkflowProvider({ children }: { children: ReactNode }) {
       const savedNotifs = localStorage.getItem(STORAGE_KEY_NOTIFS);
       if (savedNotifs) {
         try {
-          setNotifications(JSON.parse(savedNotifs));
+          const parsed = JSON.parse(savedNotifs);
+          // Filter out any legacy hardcoded demo IDs
+          const cleaned = Array.isArray(parsed)
+            ? parsed.filter((n: any) => n.id !== "HAZ-PIPHEMA-01" && n.id !== "HAZ-PASIGHAT-02")
+            : [];
+          setNotifications(cleaned);
         } catch {
           // ignore parsing error
         }
