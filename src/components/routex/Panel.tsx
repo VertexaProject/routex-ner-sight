@@ -17,14 +17,14 @@ export function Panel({
   return (
     <section className={cn("glass rounded-2xl", className)}>
       {title ? (
-        <header className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-3">
-          <h2 className="text-[13px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        <header className="flex items-center justify-between gap-3 border-b border-border/70 px-4 py-2.5 sm:py-3">
+          <h2 className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-foreground/80">
             {title}
           </h2>
           {action}
         </header>
       ) : null}
-      <div className={cn("p-4", bodyClassName)}>{children}</div>
+      <div className={cn("p-3.5 sm:p-4", bodyClassName)}>{children}</div>
     </section>
   );
 }

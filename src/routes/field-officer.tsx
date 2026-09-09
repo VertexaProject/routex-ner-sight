@@ -3,6 +3,27 @@ import { useRef, useState } from "react";
 import { AppHeader } from "@/components/routex/AppHeader";
 import { Panel } from "@/components/routex/Panel";
 import { incidentTypes, incidents, severityLevels } from "@/lib/mock-data";
+import { useI18n } from "@/lib/i18n";
+import { Camera, MapPin, CheckCircle2, AlertTriangle, Send, Navigation, Loader2 } from "lucide-react";
+
+const N8N_WEBHOOK_URL =
+  (import.meta.env.VITE_N8N_WEBHOOK_URL as string) || "YOUR_N8N_PRODUCTION_WEBHOOK_URL";
+
+function parseCoordinates(coordStr: string): { latitude: number; longitude: number } {
+  const parts = coordStr.split(",");
+  if (parts.length >= 2) {
+    const latMatch = parts[0].match(/([+-]?\d+(?:\.\d+)?)/);
+    const lngMatch = parts[1].match(/([+-]?\d+(?:\.\d+)?)/);
+    if (latMatch && lngMatch) {
+      let lat = parseFloat(latMatch[1]);
+      let lng = parseFloat(lngMatch[1]);
+      if (/S/i.test(parts[0])) lat = -lat;
+      if (/W/i.test(parts[1])) lng = -lng;
+      return { latitude: lat, longitude: lng };
+    }
+  }
+  return { latitude: 26.1445, longitude: 91.7362 };
+}
 
 export const Route = createFileRoute("/field-officer")({
   head: () => ({
@@ -25,63 +46,121 @@ export const Route = createFileRoute("/field-officer")({
 });
 
 const inputClass =
-  "w-full rounded-xl border border-input bg-white/5 px-3.5 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none transition-colors focus:border-primary/60 focus:ring-2 focus:ring-ring";
+  "w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm sm:text-base text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-sm";
 
-const labelClass = "mb-1.5 block text-[11px] uppercase tracking-[0.14em] text-muted-foreground";
+const labelClass = "mb-2 block text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-700";
+
+const severityColors: Record<string, { active: string; border: string }> = {
+  Low: { active: "bg-emerald-50 text-emerald-800 border-emerald-300 ring-2 ring-emerald-500/40 font-bold", border: "" },
+  Moderate: { active: "bg-amber-50 text-amber-800 border-amber-300 ring-2 ring-amber-500/40 font-bold", border: "" },
+  High: { active: "bg-orange-50 text-orange-800 border-orange-300 ring-2 ring-orange-500/40 font-bold", border: "" },
+  Critical: { active: "bg-red-50 text-red-800 border-red-300 ring-2 ring-red-500/40 font-bold", border: "" },
+};
+
+const ROADS = ["NH-2", "NH-6", "NH-10", "NH-29", "NH-108"] as const;
 
 function FieldOfficerScreen() {
+  const { t } = useI18n();
   const [type, setType] = useState(incidentTypes[0]);
+  const [roadId, setRoadId] = useState<string>(ROADS[0]);
   const [place, setPlace] = useState("");
   const [coords, setCoords] = useState("26.1445° N, 91.7362° E");
   const [description, setDescription] = useState("");
   const [severity, setSeverity] = useState<(typeof severityLevels)[number]>("Moderate");
   const [photos, setPhotos] = useState<{ name: string; url: string }[]>([]);
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Placeholder submit — a real API call will replace this later.
-  function handleSubmit(e: React.FormEvent) {
+  // Send incident report to n8n production webhook via POST JSON
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitted(true);
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    const { latitude, longitude } = parseCoordinates(coords);
+
+    const payload = {
+      incident_type: type,
+      road_id: roadId,
+      latitude,
+      longitude,
+      severity,
+      description,
+      photo_url: photos[0]?.url || "",
+      reported_by: "Officer 12 · Kohima sector",
+      place: place || undefined,
+    };
+
+    try {
+      const response = await fetch(N8N_WEBHOOK_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Webhook returned status ${response.status} (${response.statusText || "Error"})`);
+      }
+
+      setSubmitted(true);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Failed to connect to n8n webhook. Please verify the URL and try again.";
+      setSubmitError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   function reset() {
     setType(incidentTypes[0]);
+    setRoadId(ROADS[0]);
     setPlace("");
     setDescription("");
     setSeverity("Moderate");
     setPhotos([]);
     setSubmitted(false);
+    setSubmitError(null);
+    setIsSubmitting(false);
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-background flex flex-col">
       <AppHeader role="Field Officer" subtitle="Officer 12 · Kohima sector" />
 
-      <main className="mx-auto grid max-w-6xl gap-3 px-4 pb-10 pt-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <Panel title="Report an incident">
+      <main className="mx-auto grid max-w-6xl w-full gap-4 px-3.5 pb-12 pt-4 sm:px-6 lg:grid-cols-[minmax(0,1fr)_22rem] flex-1">
+        <Panel title={t("report_incident")}>
           {submitted ? (
-            <div className="py-8 text-center">
-              <p className="font-display text-lg font-semibold">Incident submitted</p>
-              <p className="mx-auto mt-2 max-w-sm text-[13px] text-muted-foreground">
-                {type} at {place || "current location"} was queued for the control room with{" "}
-                {severity.toLowerCase()} severity and {photos.length} photo
+            <div className="py-10 text-center">
+              <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-2xl bg-emerald-100 text-2xl text-emerald-600 border border-emerald-200 shadow-sm">
+                <CheckCircle2 className="h-8 w-8" />
+              </div>
+              <p className="font-display text-xl sm:text-2xl font-bold text-slate-900">{t("incident_submitted")}</p>
+              <p className="mx-auto mt-2 max-w-md text-sm sm:text-base leading-relaxed text-slate-600">
+                {type} on <span className="font-bold text-slate-900">{roadId}</span> at {place || "current location"} was queued for the control room with{" "}
+                <span className="font-bold text-slate-900">{severity.toLowerCase()}</span> severity and {photos.length} photo
                 {photos.length === 1 ? "" : "s"}.
               </p>
               <button
                 type="button"
                 onClick={reset}
-                className="mt-6 rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground"
+                className="mt-6 rounded-xl bg-primary px-6 py-3 text-sm sm:text-base font-bold text-white shadow-md transition-all hover:bg-primary/90 active:scale-[0.98]"
               >
-                Report another
+                {t("report_another")}
               </button>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="grid gap-4">
+            <form onSubmit={handleSubmit} className="grid gap-5">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className={labelClass} htmlFor="type">
-                    Incident type
+                    {t("incident_type")}
                   </label>
                   <select
                     id="type"
@@ -89,69 +168,96 @@ function FieldOfficerScreen() {
                     value={type}
                     onChange={(e) => setType(e.target.value)}
                   >
-                    {incidentTypes.map((t) => (
-                      <option key={t} value={t} className="bg-card">
-                        {t}
+                    {incidentTypes.map((item) => (
+                      <option key={item} value={item} className="bg-white text-slate-900">
+                        {item}
                       </option>
                     ))}
                   </select>
                 </div>
                 <div>
-                  <label className={labelClass} htmlFor="place">
-                    Location
+                  <label className={labelClass} htmlFor="road_id">
+                    Road / Corridor
                   </label>
-                  <input
-                    id="place"
+                  <select
+                    id="road_id"
                     className={inputClass}
-                    placeholder="e.g. NH-2 near Piphema, Nagaland"
-                    value={place}
-                    onChange={(e) => setPlace(e.target.value)}
-                    required
-                  />
+                    value={roadId}
+                    onChange={(e) => setRoadId(e.target.value)}
+                  >
+                    {ROADS.map((item) => (
+                      <option key={item} value={item} className="bg-white text-slate-900">
+                        {item}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
-              <div className="glass-soft flex flex-wrap items-center justify-between gap-2 rounded-xl px-3.5 py-2.5">
-                <span className="text-[12px] text-muted-foreground">
-                  Coordinates: <span className="text-foreground">{coords}</span>
+              <div>
+                <label className={labelClass} htmlFor="place">
+                  {t("place")}
+                </label>
+                <input
+                  id="place"
+                  className={inputClass}
+                  placeholder="e.g. NH-2 near Piphema, Nagaland"
+                  value={place}
+                  onChange={(e) => setPlace(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="glass-soft flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-3 rounded-xl px-4 py-2.5 sm:py-3 bg-slate-50/80 border border-slate-200">
+                <span className="text-xs sm:text-sm text-slate-600 font-medium flex items-center gap-1.5">
+                  <MapPin className="h-4 w-4 text-primary shrink-0" />
+                  <span>{t("coordinates")}:</span>
+                  <strong className="text-slate-900 font-bold">{coords}</strong>
                 </span>
                 <button
                   type="button"
                   onClick={() => setCoords("25.6751° N, 94.1086° E")}
-                  className="text-[11px] font-medium text-primary"
+                  className="text-xs sm:text-sm font-bold text-primary hover:underline self-start sm:self-auto flex items-center gap-1"
                 >
-                  Use current GPS
+                  <Navigation className="h-3.5 w-3.5" />
+                  <span>{t("use_gps")}</span>
                 </button>
               </div>
 
               <div>
-                <span className={labelClass}>Severity</span>
-                <div className="flex flex-wrap gap-2">
-                  {severityLevels.map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => setSeverity(s)}
-                      className={`rounded-xl px-3.5 py-2 text-[13px] transition-colors ${
-                        severity === s
-                          ? "bg-primary/20 text-primary"
-                          : "glass-soft text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      {s}
-                    </button>
-                  ))}
+                <span className={labelClass}>{t("severity")}</span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {severityLevels.map((s) => {
+                    const active = severity === s;
+                    const style = severityColors[s];
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setSeverity(s)}
+                        className={`rounded-xl px-3.5 py-2.5 text-sm font-semibold transition-all border ${
+                          active
+                            ? style.active
+                            : "glass-soft border-slate-200 text-slate-600 hover:text-slate-900 bg-white/70 hover:bg-white"
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               <div>
-                <span className={labelClass}>Photo upload</span>
+                <span className={labelClass}>{t("photo_upload")}</span>
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
-                  className="glass-soft w-full rounded-xl border-dashed px-4 py-7 text-center text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+                  className="glass-soft w-full rounded-xl border-dashed border-2 border-slate-300 px-4 py-5 sm:py-6 text-center text-sm sm:text-base text-slate-500 transition-colors hover:text-slate-900 hover:border-primary/50 flex flex-col items-center justify-center gap-1 bg-slate-50/60 hover:bg-white"
                 >
-                  Tap to add photos from camera or gallery
+                  <Camera className="h-7 w-7 text-slate-400" />
+                  <span className="font-bold text-slate-800">Tap to add photos from camera or gallery</span>
+                  <span className="text-xs text-slate-500">Attach images of road damage, blockages, or floods</span>
                 </button>
                 <input
                   ref={fileRef}
@@ -161,22 +267,26 @@ function FieldOfficerScreen() {
                   className="hidden"
                   onChange={(e) => {
                     const files = Array.from(e.target.files ?? []);
-                    setPhotos((p) => [
-                      ...p,
-                      ...files.map((f) => ({ name: f.name, url: URL.createObjectURL(f) })),
-                    ]);
+                    files.forEach((f) => {
+                      const reader = new FileReader();
+                      reader.onload = (event) => {
+                        const url = (event.target?.result as string) || URL.createObjectURL(f);
+                        setPhotos((p) => [...p, { name: f.name, url }]);
+                      };
+                      reader.readAsDataURL(f);
+                    });
                   }}
                 />
                 {photos.length ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
+                  <div className="mt-3 flex flex-wrap gap-2.5">
                     {photos.map((p, idx) => (
-                      <div key={p.url} className="relative h-20 w-20 overflow-hidden rounded-xl">
+                      <div key={p.url} className="relative h-20 w-20 sm:h-24 sm:w-24 overflow-hidden rounded-xl border border-slate-200 shadow-sm">
                         <img src={p.url} alt={p.name} className="h-full w-full object-cover" />
                         <button
                           type="button"
                           aria-label={`Remove ${p.name}`}
                           onClick={() => setPhotos((ps) => ps.filter((_, i) => i !== idx))}
-                          className="glass absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full text-[11px]"
+                          className="absolute right-1.5 top-1.5 grid h-6 w-6 place-items-center rounded-full text-xs font-bold bg-black/60 text-white hover:bg-red-600 transition-colors"
                         >
                           ×
                         </button>
@@ -188,11 +298,11 @@ function FieldOfficerScreen() {
 
               <div>
                 <label className={labelClass} htmlFor="desc">
-                  Description
+                  {t("description")}
                 </label>
                 <textarea
                   id="desc"
-                  rows={4}
+                  rows={3}
                   className={inputClass}
                   placeholder="What happened, how much of the road is affected, is traffic moving?"
                   value={description}
@@ -201,27 +311,71 @@ function FieldOfficerScreen() {
                 />
               </div>
 
+              {submitError && (
+                <div className="rounded-xl p-3 bg-red-50 border border-red-200 text-red-700 text-xs sm:text-sm flex items-start gap-2.5 animate-in fade-in">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-red-600 mt-0.5" />
+                  <div className="min-w-0 flex-1">
+                    <strong className="font-bold block">Submission Failed</strong>
+                    <p className="mt-0.5 text-xs text-red-600 leading-relaxed">{submitError}</p>
+                  </div>
+                </div>
+              )}
+
               <button
                 type="submit"
-                className="rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                disabled={isSubmitting}
+                className="rounded-xl bg-primary px-6 py-3.5 text-base font-bold text-white shadow-md transition-all hover:bg-primary/90 active:scale-[0.99] flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Submit incident
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Submitting Incident...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" />
+                    <span>{t("submit_incident")}</span>
+                  </>
+                )}
               </button>
             </form>
           )}
         </Panel>
 
-        <Panel title="My recent reports" bodyClassName="p-2">
+        <Panel title={t("recent_reports")} bodyClassName="p-2 sm:p-3">
           <ul className="divide-y divide-border/60">
             {incidents.map((i) => (
-              <li key={i.id} className="px-2 py-2.5">
+              <li key={i.id} className="px-3 py-3 hover:bg-black/[0.02] transition-colors">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-[13px] font-medium">{i.type}</p>
-                  <span className="text-[11px] text-muted-foreground">{i.severity}</span>
+                  <p className="text-sm sm:text-base font-semibold text-foreground">{i.type}</p>
+                  <span
+                    className="text-xs font-bold px-2 py-0.5 rounded-md"
+                    style={{
+                      color:
+                        i.severity === "Critical"
+                          ? "#b91c1c"
+                          : i.severity === "High"
+                            ? "#c2410c"
+                            : i.severity === "Moderate"
+                              ? "#b45309"
+                              : "#047857",
+                      backgroundColor:
+                        i.severity === "Critical"
+                          ? "#fee2e2"
+                          : i.severity === "High"
+                            ? "#ffedd5"
+                            : i.severity === "Moderate"
+                              ? "#fef3c7"
+                              : "#d1fae5",
+                    }}
+                  >
+                    {i.severity}
+                  </span>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
-                  {i.place} · {i.ago}
-                </p>
+                <div className="mt-1 flex items-center justify-between gap-2 text-xs sm:text-sm text-muted-foreground">
+                  <span>{i.place}</span>
+                  <span>{i.ago}</span>
+                </div>
               </li>
             ))}
           </ul>

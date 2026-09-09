@@ -192,7 +192,7 @@ export const authorityStats = [
   { label: "Active convoys", value: "42" },
   { label: "Open incidents", value: "11" },
   { label: "Blocked corridors", value: "3" },
-  { label: "Network reachability", value: "87%" },
+  { label: "Network reach", value: "87%" },
 ];
 
 export const incidentTypes = [

@@ -1,6 +1,6 @@
 import { roadStatusMeta, type RoadStatus } from "@/lib/mock-data";
 
-export function StatusDot({ status, size = 8 }: { status: RoadStatus; size?: number }) {
+export function StatusDot({ status, size = 9 }: { status: RoadStatus; size?: number }) {
   return (
     <span
       className="inline-block shrink-0 rounded-full"
@@ -16,8 +16,8 @@ export function StatusDot({ status, size = 8 }: { status: RoadStatus; size?: num
 
 export function StatusPill({ status, label }: { status: RoadStatus; label?: string }) {
   return (
-    <span className="glass-soft inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-[11px] font-medium tracking-wide">
-      <StatusDot status={status} />
+    <span className="glass-soft inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold tracking-wide">
+      <StatusDot status={status} size={8} />
       <span style={{ color: roadStatusMeta[status].colorVar }}>
         {label ?? roadStatusMeta[status].label}
       </span>

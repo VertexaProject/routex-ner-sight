@@ -7,6 +7,7 @@ import {
   vehicles,
   type RoadStatus,
 } from "@/lib/mock-data";
+import { StatusPill } from "@/components/routex/StatusPill";
 
 type Selection =
   | { kind: "corridor"; id: string }
@@ -46,9 +47,10 @@ export function NERMap() {
   })();
 
   return (
-    <div className="glass relative h-full min-h-[420px] w-full overflow-hidden rounded-2xl">
+    <div className="glass relative h-full min-h-[340px] sm:min-h-[420px] w-full overflow-hidden rounded-2xl">
       <svg
         viewBox="0 0 1000 620"
+        preserveAspectRatio="xMidYMid meet"
         className="h-full w-full"
         role="img"
         aria-label="Interactive map of India's North Eastern Region showing road status, convoys and incidents"
@@ -159,20 +161,20 @@ export function NERMap() {
       </svg>
 
       {/* Legend */}
-      <div className="glass-soft absolute bottom-3 left-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl px-3 py-2 text-[11px]">
+      <div className="glass-soft absolute bottom-2 sm:bottom-3 left-2 sm:left-3 right-2 sm:right-auto flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-xl px-3 py-2 text-xs font-semibold z-10">
         {(Object.keys(roadStatusMeta) as RoadStatus[]).map((s) => (
           <span key={s} className="flex items-center gap-1.5">
             <span
-              className="h-1.5 w-5 rounded-full"
+              className="h-2 w-4 sm:w-5 rounded-full"
               style={{ backgroundColor: roadStatusMeta[s].colorVar }}
             />
-            <span className="text-muted-foreground">{roadStatusMeta[s].label}</span>
+            <span className="text-foreground/85 font-medium">{roadStatusMeta[s].label}</span>
           </span>
         ))}
       </div>
 
       {/* Layer toggles */}
-      <div className="glass-soft absolute right-3 top-3 flex flex-col gap-1 rounded-xl p-1.5">
+      <div className="glass-soft absolute right-2 sm:right-3 top-2 sm:top-3 flex flex-col gap-1 rounded-xl p-1.5 z-10">
         {(
           [
             ["vehicles", "Vehicles"],
@@ -184,7 +186,7 @@ export function NERMap() {
             key={key}
             type="button"
             onClick={() => setLayers((l) => ({ ...l, [key]: !l[key] }))}
-            className={`rounded-lg px-2.5 py-1 text-[11px] transition-colors ${
+            className={`rounded-lg px-2.5 py-1 sm:px-3 sm:py-1.5 text-xs font-semibold transition-colors ${
               layers[key] ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -195,23 +197,33 @@ export function NERMap() {
 
       {/* Selection detail */}
       {detail ? (
-        <div className="glass absolute left-3 top-3 max-w-[16rem] rounded-xl px-3 py-2.5">
-          <p className="text-[13px] font-semibold">{detail.title}</p>
-          {detail.lines.map((l) => (
-            <p key={l} className="mt-0.5 text-[11px] text-muted-foreground">
-              {l}
-            </p>
-          ))}
-          <button
-            type="button"
-            onClick={() => setSelected(null)}
-            className="mt-2 text-[10px] uppercase tracking-widest text-primary"
-          >
-            Close
-          </button>
+        <div className="glass absolute left-2 sm:left-3 top-2 sm:top-3 max-w-[calc(100%-6rem)] sm:max-w-[18rem] rounded-xl p-3 z-20 shadow-xl">
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-sm font-bold text-foreground">{detail.title}</p>
+            <button
+              type="button"
+              onClick={() => setSelected(null)}
+              className="grid h-5 w-5 shrink-0 place-items-center rounded-full glass-soft text-xs text-muted-foreground hover:text-foreground"
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          <div className="mt-1 space-y-0.5">
+            {detail.lines.map((l) => (
+              <p key={l} className="text-xs text-muted-foreground font-medium">
+                {l}
+              </p>
+            ))}
+          </div>
+          {detail.status ? (
+            <div className="mt-2">
+              <StatusPill status={detail.status} />
+            </div>
+          ) : null}
         </div>
       ) : (
-        <p className="glass-soft absolute left-3 top-3 rounded-xl px-3 py-2 text-[11px] text-muted-foreground">
+        <p className="glass-soft absolute left-2 sm:left-3 top-2 sm:top-3 rounded-xl px-3 py-2 text-xs text-muted-foreground font-medium z-10 hidden sm:block">
           Tap a corridor, convoy or incident
         </p>
       )}

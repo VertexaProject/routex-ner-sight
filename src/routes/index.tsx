@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { RouteXIcon } from "@/components/routex/RouteXLogo";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -43,40 +44,44 @@ const roles = [
 
 function RoleSelection() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center px-5 py-12">
+    <main className="flex min-h-screen flex-col items-center justify-center px-4 py-12 sm:px-6">
       <div className="w-full max-w-4xl">
-        <div className="flex items-center gap-3">
-          <span className="grid h-11 w-11 place-items-center rounded-2xl bg-primary/20 font-display text-lg font-bold text-primary">
-            R
-          </span>
+        <div className="flex items-center gap-3.5">
+          <RouteXIcon size="lg" className="sm:h-12 sm:w-12" />
           <div>
-            <h1 className="text-2xl font-semibold sm:text-3xl">RouteX</h1>
-            <p className="text-sm text-muted-foreground">
+            <h1 className="text-3xl font-black tracking-tight sm:text-4xl text-foreground">
+              Route<span className="text-primary font-black">X</span>
+            </h1>
+            <p className="mt-0.5 text-sm sm:text-base font-medium text-muted-foreground">
               AI-powered logistics & accessibility intelligence for India's North Eastern Region
             </p>
           </div>
         </div>
 
-        <p className="mt-8 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+        <p className="mt-8 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Demo sign-in · select a role
         </p>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="mt-4 grid gap-4 sm:grid-cols-3">
           {roles.map((r) => (
             <Link
               key={r.to}
               to={r.to}
-              className="glass glass-hover flex flex-col rounded-2xl p-5"
+              className="glass glass-hover group flex flex-col justify-between rounded-2xl p-6 transition-all"
             >
-              <span className="text-[11px] uppercase tracking-[0.16em] text-primary">{r.who}</span>
-              <span className="mt-2 font-display text-lg font-semibold">{r.name}</span>
-              <span className="mt-2 text-[13px] leading-relaxed text-muted-foreground">{r.desc}</span>
-              <span className="mt-5 text-xs font-medium text-primary">Continue →</span>
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-primary">{r.who}</span>
+                <span className="mt-2 block font-display text-xl font-bold text-foreground">{r.name}</span>
+                <span className="mt-2 block text-sm leading-relaxed text-muted-foreground">{r.desc}</span>
+              </div>
+              <span className="mt-6 text-sm font-bold text-primary flex items-center gap-1.5 group-hover:translate-x-1 transition-transform">
+                Continue <span>→</span>
+              </span>
             </Link>
           ))}
         </div>
 
-        <p className="mt-8 text-xs text-muted-foreground">
+        <p className="mt-8 text-xs sm:text-sm text-muted-foreground">
           Prototype interface with demo data. Roads, convoys and incidents shown are illustrative.
         </p>
       </div>
