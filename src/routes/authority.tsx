@@ -21,9 +21,7 @@ import { useI18n } from "@/lib/i18n";
 import { RoleGuard } from "@/components/routex/RoleGuard";
 import { useRerouteWorkflow } from "@/lib/route-store";
 import {
-  affectedDeliveries,
   alerts,
-  authorityStats,
   incidents,
   weatherSummary,
 } from "@/lib/mock-data";
@@ -40,6 +38,12 @@ import {
   CheckCircle2,
   ShieldCheck,
   X,
+  Sparkles,
+  Clock,
+  ArrowRight,
+  Activity,
+  Network,
+  Calendar,
 } from "lucide-react";
 
 export const Route = createFileRoute("/authority")({
@@ -79,7 +83,7 @@ const levelColor: Record<string, string> = {
   low: "var(--status-open)",
 };
 
-type MobileTab = "alerts" | "weather" | "deliveries" | "incidents";
+type MobileTab = "alerts" | "emergency" | "timeline" | "connectivity" | "weather" | "deliveries" | "incidents";
 
 function LatestIncidentAlertCard({
   incident,
@@ -363,6 +367,179 @@ function AlertsList({
   );
 }
 
+interface EmergencySituation {
+  id: string;
+  roadId: string;
+  corridorId: string;
+  hazard: string;
+  severity: "Critical" | "High" | "Medium";
+  status: string;
+  recommended: string;
+  location: string;
+}
+
+const EMERGENCY_SITUATIONS: EmergencySituation[] = [
+  {
+    id: "demo-alert-nh6",
+    roadId: "NH-6",
+    corridorId: "nh6",
+    hazard: "Landslide",
+    severity: "Critical",
+    status: "Road blocked",
+    recommended: "Authorize alternate route",
+    location: "Sonapur Tunnel, Meghalaya",
+  },
+  {
+    id: "demo-alert-nh10",
+    roadId: "NH-10",
+    corridorId: "nh10",
+    hazard: "Heavy Rainfall",
+    severity: "High",
+    status: "Travel caution",
+    recommended: "Monitor corridor",
+    location: "Rangpo Sector, Sikkim",
+  },
+  {
+    id: "demo-alert-nh2",
+    roadId: "NH-2",
+    corridorId: "nh2",
+    hazard: "Road Damage",
+    severity: "Medium",
+    status: "Partial disruption",
+    recommended: "Reduce convoy speed",
+    location: "Km 38, Piphema Valley, Nagaland",
+  },
+];
+
+function EmergencySituationCard({
+  situation,
+  isAuthorized,
+  onAuthorize,
+  onViewDetails,
+}: {
+  situation: EmergencySituation;
+  isAuthorized: boolean;
+  onAuthorize?: (id: string) => void;
+  onViewDetails?: (corridorId: string) => void;
+}) {
+  const isCritical = situation.severity === "Critical";
+  const isHigh = situation.severity === "High";
+
+  return (
+    <div
+      data-testid={`emergency-situation-${situation.roadId.toLowerCase().replace('-', '')}`}
+      className={`mx-1 my-1 p-2 rounded-xl border transition-all shadow-2xs select-text ${
+        situation.id === "demo-alert-nh6" && isAuthorized
+          ? "bg-emerald-50/80 border-emerald-300 ring-1 ring-emerald-500/20"
+          : isCritical
+          ? "bg-rose-50/80 border-rose-200/90"
+          : isHigh
+          ? "bg-amber-50/70 border-amber-200/90"
+          : "bg-slate-50/80 border-slate-200"
+      }`}
+    >
+      {/* Top line: Road — Hazard + Severity Badge */}
+      <div className="flex items-center justify-between gap-1 mb-0.5">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-xs font-bold text-slate-900 truncate">
+            {situation.roadId} — {situation.hazard}
+          </span>
+        </div>
+        <span
+          className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold shrink-0 border ${
+            situation.id === "demo-alert-nh6" && isAuthorized
+              ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+              : isCritical
+              ? "bg-rose-100 text-rose-800 border-rose-200"
+              : isHigh
+              ? "bg-amber-100 text-amber-800 border-amber-200"
+              : "bg-blue-100 text-blue-800 border-blue-200"
+          }`}
+        >
+          {situation.id === "demo-alert-nh6" && isAuthorized ? "Authorized" : situation.severity}
+        </span>
+      </div>
+
+      {/* Sub-status line: e.g. Critical • Road blocked */}
+      <div className="flex items-center gap-1.5 text-[10.5px] font-semibold text-slate-700 mb-0.5">
+        <span
+          className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+            situation.id === "demo-alert-nh6" && isAuthorized
+              ? "bg-emerald-600"
+              : isCritical
+              ? "bg-rose-600 animate-pulse"
+              : isHigh
+              ? "bg-amber-500"
+              : "bg-blue-500"
+          }`}
+        />
+        <span>
+          {situation.id === "demo-alert-nh6" && isAuthorized
+            ? "Reroute Authorized • Traffic Diverted"
+            : `${situation.severity} • ${situation.status}`}
+        </span>
+      </div>
+
+      {/* Recommended line */}
+      <p className="text-[10.5px] text-slate-600 leading-tight mb-1.5">
+        <span className="font-bold text-slate-800">Recommended:</span>{" "}
+        <span>{situation.recommended}</span>
+      </p>
+
+      {/* Action buttons: View Details & Authorize Reroute (for NH-6) */}
+      <div className="flex items-center gap-1.5 pt-1 border-t border-black/5">
+        <button
+          type="button"
+          data-testid={`view-details-${situation.roadId.toLowerCase().replace('-', '')}`}
+          onClick={() => onViewDetails?.(situation.corridorId)}
+          className="px-2 py-0.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-md text-[9.5px] font-bold shadow-2xs transition-all flex items-center gap-1 active:scale-95 cursor-pointer"
+        >
+          <MapPin className="h-3 w-3 text-slate-500" />
+          <span>View Details</span>
+        </button>
+
+        {situation.id === "demo-alert-nh6" && !isAuthorized && onAuthorize && (
+          <button
+            type="button"
+            data-testid="emergency-authorize-btn"
+            onClick={() => onAuthorize(situation.id)}
+            className="px-2 py-0.5 bg-primary hover:bg-primary/90 text-white rounded-md text-[9.5px] font-bold shadow-2xs transition-all flex items-center gap-1 active:scale-95 cursor-pointer ml-auto"
+          >
+            <ShieldCheck className="h-3 w-3" />
+            <span>Authorize Reroute</span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EmergencyResponseList({
+  situations = EMERGENCY_SITUATIONS,
+  isNh6Authorized,
+  onAuthorize,
+  onViewDetails,
+}: {
+  situations?: EmergencySituation[];
+  isNh6Authorized: boolean;
+  onAuthorize?: (id: string) => void;
+  onViewDetails?: (corridorId: string) => void;
+}) {
+  return (
+    <div className="space-y-1">
+      {situations.map((sit) => (
+        <EmergencySituationCard
+          key={sit.id}
+          situation={sit}
+          isAuthorized={isNh6Authorized}
+          onAuthorize={onAuthorize}
+          onViewDetails={onViewDetails}
+        />
+      ))}
+    </div>
+  );
+}
+
 function WeatherList() {
   return (
     <div className="flex flex-col h-full">
@@ -453,31 +630,457 @@ function IncidentsList({
   );
 }
 
-function DeliveriesList() {
+interface CriticalDelivery {
+  id: string;
+  cargo: string;
+  from: string;
+  to: string;
+  severity: "Critical" | "High" | "Moderate";
+  eta: string;
+}
+
+const CRITICAL_DELIVERIES: CriticalDelivery[] = [
+  {
+    id: "RX-217",
+    cargo: "Medical Supplies",
+    from: "Dimapur",
+    to: "Kohima",
+    severity: "Critical",
+    eta: "ETA 1h 25m",
+  },
+  {
+    id: "RX-218",
+    cargo: "Food Supplies",
+    from: "Guwahati",
+    to: "Pasighat",
+    severity: "High",
+    eta: "ETA 5h 10m",
+  },
+  {
+    id: "RX-219",
+    cargo: "Fuel",
+    from: "Agartala",
+    to: "Aizawl",
+    severity: "High",
+    eta: "ETA 4h 20m",
+  },
+];
+
+function CriticalLogisticsList() {
   return (
-    <ul className="divide-y divide-border/60">
-      {affectedDeliveries.map((d) => (
-        <li key={d.id} className="flex items-center justify-between gap-2 px-3 py-2 hover:bg-black/[0.02] transition-colors">
-          <div className="min-w-0">
-            <p className="truncate text-xs sm:text-sm font-semibold text-foreground">{d.cargo}</p>
-            <p className="truncate text-[11px] text-muted-foreground">
-              {d.id} → {d.to}
-            </p>
+    <div className="space-y-1 p-1">
+      {CRITICAL_DELIVERIES.map((d) => {
+        const isCritical = d.severity === "Critical";
+        return (
+          <div
+            key={d.id}
+            className={`p-2 rounded-xl border transition-all shadow-2xs ${
+              isCritical
+                ? "bg-rose-50/70 border-rose-200/90"
+                : "bg-amber-50/60 border-amber-200/90"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-1.5 mb-1">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-primary/15 text-primary border border-primary/20 shrink-0">
+                  {d.id}
+                </span>
+                <span className="text-xs font-bold text-slate-900 truncate">
+                  {d.cargo}
+                </span>
+              </div>
+              <span
+                className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 border ${
+                  isCritical
+                    ? "bg-rose-100 text-rose-800 border-rose-200"
+                    : "bg-amber-100 text-amber-800 border-amber-200"
+                }`}
+              >
+                {d.severity}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between gap-2 text-[11px] text-slate-600 font-medium pt-1 border-t border-black/5">
+              <span className="flex items-center gap-1 truncate text-slate-700">
+                <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
+                <span className="truncate">{d.from} → {d.to}</span>
+              </span>
+              <span className="flex items-center gap-1 shrink-0 font-bold text-slate-900">
+                <Clock className="h-3 w-3 text-slate-400 shrink-0" />
+                <span>{d.eta}</span>
+              </span>
+            </div>
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-0.5">
-            <StatusPill status={d.status} />
-            <span className="text-[11px] font-semibold text-foreground/85">{d.delay}</span>
+        );
+      })}
+    </div>
+  );
+}
+
+interface StateConnectivity {
+  state: string;
+  shortCode: string;
+  status: "Connected" | "Caution" | "High Risk";
+  corridorId?: string;
+  detail?: string;
+}
+
+const NER_STATES_CONNECTIVITY: StateConnectivity[] = [
+  { state: "Assam", shortCode: "AS", status: "Connected", corridorId: "nh27", detail: "Corridors operational" },
+  { state: "Arunachal Pradesh", shortCode: "AR", status: "Connected", corridorId: "nh13", detail: "Corridors operational" },
+  { state: "Manipur", shortCode: "MN", status: "Caution", corridorId: "nh37", detail: "Slow movement / escort" },
+  { state: "Meghalaya", shortCode: "ML", status: "High Risk", corridorId: "nh6", detail: "NH-6 landslide blockage" },
+  { state: "Mizoram", shortCode: "MZ", status: "Connected", corridorId: "nh54", detail: "Corridors operational" },
+  { state: "Nagaland", shortCode: "NL", status: "Caution", corridorId: "nh2", detail: "NH-2 single-lane queue" },
+  { state: "Sikkim", shortCode: "SK", status: "High Risk", corridorId: "nh10", detail: "NH-10 heavy rain alert" },
+  { state: "Tripura", shortCode: "TR", status: "Connected", corridorId: "nh8", detail: "Corridors operational" },
+];
+
+function NerRegionalConnectivityList({
+  onSelectRoad,
+}: {
+  onSelectRoad?: (roadId: string) => void;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-1.5 p-1.5">
+      {NER_STATES_CONNECTIVITY.map((item) => {
+        const isCaution = item.status === "Caution";
+        const isHighRisk = item.status === "High Risk";
+
+        return (
+          <div
+            key={item.state}
+            data-testid={`state-connectivity-${item.shortCode.toLowerCase()}`}
+            onClick={() => item.corridorId && onSelectRoad?.(item.corridorId)}
+            className={`p-1.5 rounded-lg border transition-all flex flex-col justify-between text-xs cursor-pointer select-text hover:shadow-2xs active:scale-[0.98] ${
+              isHighRisk
+                ? "bg-rose-50/80 border-rose-200 hover:bg-rose-100/70"
+                : isCaution
+                ? "bg-amber-50/70 border-amber-200 hover:bg-amber-100/70"
+                : "bg-white/80 border-slate-200/80 hover:bg-emerald-50/50 hover:border-emerald-200"
+            }`}
+            title={`${item.state} — ${item.status}: ${item.detail}. Click to view corridor on map.`}
+          >
+            <div className="flex items-center justify-between gap-1">
+              <span className="font-bold text-slate-800 text-[11px] leading-tight">
+                {item.state}
+              </span>
+              {item.corridorId && (
+                <span className="text-[9px] text-slate-400 font-semibold uppercase">
+                  {item.corridorId}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span
+                className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                  isHighRisk
+                    ? "bg-rose-500 animate-pulse"
+                    : isCaution
+                    ? "bg-amber-500"
+                    : "bg-emerald-500"
+                }`}
+              />
+              <span
+                className={`text-[10px] font-bold ${
+                  isHighRisk
+                    ? "text-rose-700"
+                    : isCaution
+                    ? "text-amber-700"
+                    : "text-emerald-700"
+                }`}
+              >
+                {item.status}
+              </span>
+            </div>
           </div>
-        </li>
-      ))}
-    </ul>
+        );
+      })}
+    </div>
+  );
+}
+
+interface TimelineEvent {
+  id: string;
+  time: string;
+  title: string;
+  actor: string;
+  type: "report" | "analysis" | "route" | "authority" | "execution";
+}
+
+const LIVE_OPERATIONS_TIMELINE: TimelineEvent[] = [
+  {
+    id: "timeline-1",
+    time: "10:42 AM",
+    title: "Field Officer reported Landslide on NH-6",
+    actor: "Field Officer",
+    type: "report",
+  },
+  {
+    id: "timeline-2",
+    time: "10:44 AM",
+    title: "RouteX marked corridor Critical",
+    actor: "RouteX AI",
+    type: "analysis",
+  },
+  {
+    id: "timeline-3",
+    time: "10:46 AM",
+    title: "Alternate route identified",
+    actor: "Routing Engine",
+    type: "route",
+  },
+  {
+    id: "timeline-4",
+    time: "10:48 AM",
+    title: "Authority authorized reroute",
+    actor: "Authority HQ",
+    type: "authority",
+  },
+  {
+    id: "timeline-5",
+    time: "10:50 AM",
+    title: "Convoy RX-217 diverted",
+    actor: "Convoy Ops",
+    type: "execution",
+  },
+];
+
+function LiveOperationsTimelineList() {
+  return (
+    <div className="px-2.5 py-1 select-text">
+      <div className="relative border-l border-slate-200 ml-2 space-y-1.5 my-0.5">
+        {LIVE_OPERATIONS_TIMELINE.map((evt) => {
+          return (
+            <div
+              key={evt.id}
+              data-testid={`timeline-event-${evt.id}`}
+              className="relative pl-3.5 group"
+            >
+              {/* Timeline node icon */}
+              <div
+                className={`absolute -left-[10px] top-0.5 h-5 w-5 rounded-full border flex items-center justify-center bg-white shadow-2xs transition-transform group-hover:scale-110 ${
+                  evt.type === "report"
+                    ? "border-amber-300 text-amber-600 bg-amber-50/60"
+                    : evt.type === "analysis"
+                    ? "border-rose-300 text-rose-600 bg-rose-50/60"
+                    : evt.type === "route"
+                    ? "border-blue-300 text-blue-600 bg-blue-50/60"
+                    : evt.type === "authority"
+                    ? "border-emerald-300 text-emerald-600 bg-emerald-50/60"
+                    : "border-teal-300 text-teal-600 bg-teal-50/60"
+                }`}
+              >
+                {evt.type === "report" && <Radio className="h-2.5 w-2.5" />}
+                {evt.type === "analysis" && <ShieldAlert className="h-2.5 w-2.5" />}
+                {evt.type === "route" && <Sparkles className="h-2.5 w-2.5" />}
+                {evt.type === "authority" && <ShieldCheck className="h-2.5 w-2.5" />}
+                {evt.type === "execution" && <Truck className="h-2.5 w-2.5" />}
+              </div>
+
+              {/* Event timestamp & content */}
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 leading-none mb-0.5">
+                  <span className="font-mono text-[10px] font-bold text-slate-500">
+                    {evt.time}
+                  </span>
+                  <span className="text-slate-300 text-[10px]">•</span>
+                  <span
+                    className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${
+                      evt.type === "report"
+                        ? "bg-amber-50 text-amber-700 border-amber-200"
+                        : evt.type === "analysis"
+                        ? "bg-rose-50 text-rose-700 border-rose-200"
+                        : evt.type === "route"
+                        ? "bg-blue-50 text-blue-700 border-blue-200"
+                        : evt.type === "authority"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-teal-50 text-teal-700 border-teal-200"
+                    }`}
+                  >
+                    {evt.actor}
+                  </span>
+                </div>
+                <p className="text-[11px] font-semibold text-slate-800 leading-tight">
+                  {evt.title}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function AiDecisionSupportSection({
+  isAuthorized,
+  onAuthorize,
+  onReviewRoute,
+}: {
+  isAuthorized: boolean;
+  onAuthorize: () => void;
+  onReviewRoute?: () => void;
+}) {
+  return (
+    <section
+      data-testid="ai-decision-support-section"
+      className="glass rounded-2xl p-3 sm:p-3.5 border border-slate-200/90 bg-white/95 shadow-sm shrink-0 flex flex-col gap-2 select-text"
+    >
+      {/* Header Row: Title, Status Line, and Action Buttons */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary shrink-0">
+            <Sparkles className="h-3.5 w-3.5" />
+            <h3 className="text-xs font-bold tracking-wide uppercase">AI Decision Support</h3>
+          </div>
+
+          {/* Clear Status Line */}
+          {!isAuthorized ? (
+            <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+              <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse mr-0.5" />
+              <span>● Recommendation Ready</span>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 animate-in fade-in duration-200">
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 mr-0.5 shrink-0" />
+              <span>✓ Reroute Authorized</span>
+            </div>
+          )}
+        </div>
+
+        {/* Action Buttons: Authorize Reroute and Review Route */}
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            data-testid="review-route-btn"
+            onClick={onReviewRoute}
+            className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200/90 rounded-xl text-xs font-bold shadow-2xs transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer"
+          >
+            <MapPin className="h-3.5 w-3.5 text-slate-500" />
+            <span>Review Route</span>
+          </button>
+
+          {!isAuthorized ? (
+            <button
+              type="button"
+              data-testid="ai-authorize-reroute-btn"
+              onClick={onAuthorize}
+              className="px-4 py-1.5 bg-primary hover:bg-primary/90 active:scale-95 text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              <span>Authorize Reroute</span>
+            </button>
+          ) : (
+            <div
+              data-testid="ai-reroute-authorized-badge"
+              className="px-3.5 py-1.5 bg-emerald-50 border border-emerald-300 text-emerald-800 font-bold text-xs rounded-xl shadow-2xs flex items-center gap-1.5"
+            >
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <span>✓ Reroute Authorized</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Details Grid: Current Risk, Affected Corridor, Primary Hazard, Estimated Delay */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-100 text-xs">
+        <div className="min-w-0">
+          <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block truncate">
+            Current Risk
+          </span>
+          <span className="inline-block mt-0.5 px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-800 border border-rose-200">
+            HIGH
+          </span>
+        </div>
+        <div className="min-w-0">
+          <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block truncate">
+            Affected Corridor
+          </span>
+          <span className="font-bold text-slate-900 mt-0.5 block truncate">
+            NH-6, Meghalaya
+          </span>
+        </div>
+        <div className="min-w-0">
+          <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block truncate">
+            Primary Hazard
+          </span>
+          <span className="font-bold text-rose-600 mt-0.5 block truncate">
+            Landslide
+          </span>
+        </div>
+        <div className="min-w-0">
+          <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block truncate">
+            Estimated Delay
+          </span>
+          <span className="font-bold text-amber-700 mt-0.5 block truncate">
+            +45 min
+          </span>
+        </div>
+      </div>
+
+      {/* Recommended Action Row */}
+      <div className="text-xs pt-1.5 border-t border-slate-100 flex items-start gap-1.5 leading-snug">
+        <span className="font-bold text-slate-900 shrink-0">Recommended Action:</span>
+        <span className="text-slate-600 font-medium">
+          Divert critical logistics through the safer alternate corridor.
+        </span>
+      </div>
+    </section>
+  );
+}
+
+function RouteXSystemStatusBar() {
+  return (
+    <div
+      data-testid="routex-system-status-bar"
+      className="glass rounded-xl px-3 py-1.5 mb-2 bg-white/90 border border-slate-200/80 shadow-2xs flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs shrink-0 select-text"
+    >
+      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+        {/* Main status indicator */}
+        <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-bold text-[11px]">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+          <span>● All Systems Operational</span>
+        </div>
+
+        {/* Separator */}
+        <span className="hidden md:inline text-slate-300">|</span>
+
+        {/* Sub-system indicators */}
+        <div className="flex items-center gap-2.5 sm:gap-4 flex-wrap text-[11px] text-slate-600 font-medium">
+          <span className="flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+            <span>Road Network — <strong className="text-slate-800 font-semibold">Online</strong></span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+            <span>Vehicle Tracking — <strong className="text-slate-800 font-semibold">Online</strong></span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0" />
+            <span>Weather Monitoring — <strong className="text-slate-800 font-semibold">Online</strong></span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse shrink-0" />
+            <span>Emergency Alerts — <strong className="text-rose-700 font-bold">Active</strong></span>
+          </span>
+        </div>
+      </div>
+
+      {/* Subtle timestamp */}
+      <div className="flex items-center gap-1 text-[10px] text-slate-400 font-medium shrink-0 ml-auto sm:ml-0">
+        <Clock className="h-3 w-3 text-slate-400" />
+        <span>Last updated: Just now</span>
+      </div>
+    </div>
   );
 }
 
 function AuthorityDashboard() {
   const { t } = useI18n();
   const { unreadCount: storeUnreadCount } = useRerouteWorkflow();
-  const [mobileTab, setMobileTab] = useState<MobileTab>("alerts");
+  const [mobileTab, setMobileTab] = useState<MobileTab>("emergency");
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Static Demo NER Alerts state (for SIH Presentation)
@@ -519,13 +1122,40 @@ function AuthorityDashboard() {
   }, []);
 
   // Blocked Corridors: NH-6 blocked by default until rerouted; NH-108 blocked
-  const blockedCorridorsCount = isNh6Authorized ? 3 : 4;
+  const blockedCorridorsCount = isNh6Authorized ? 1 : 2;
   const blockedRoadIds = useMemo(() => {
     return isNh6Authorized ? ["nh108"] : ["nh108", "nh6"];
   }, [isNh6Authorized]);
 
   // Static demo alerts unread count (SIH presentation: 3 active alerts)
   const notificationCount = STATIC_DEMO_ALERTS.length;
+
+  // Live browser clock for mission control heading
+  const [currentTime, setCurrentTime] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formattedDate = useMemo(() => {
+    return currentTime.toLocaleDateString("en-US", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  }, [currentTime]);
+
+  const formattedTime = useMemo(() => {
+    return currentTime.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    });
+  }, [currentTime]);
 
   return (
     <div className="min-h-screen flex flex-col lg:h-screen lg:overflow-hidden bg-background">
@@ -546,65 +1176,254 @@ function AuthorityDashboard() {
         onAuthorizeReroute={handleAuthorizeReroute}
       />
 
-      <main className="flex-1 min-h-0 min-w-0 flex flex-col px-3 py-2 sm:px-5 sm:py-2.5 w-full max-w-[1800px] mx-auto overflow-hidden">
-        {/* Top metrics bar: Compact, glanceable, high visibility (~46px) */}
+      <main className="flex-1 min-h-0 min-w-0 flex flex-col px-3 py-1.5 sm:px-5 sm:py-2 w-full max-w-[1800px] mx-auto overflow-hidden">
+        {/* Mission Control Top Heading Area */}
+        <div
+          data-testid="mission-control-header"
+          className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mb-2 px-0.5 shrink-0 select-text"
+        >
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="h-2.5 w-2.5 rounded-full bg-rose-600 animate-pulse shrink-0" />
+              <h1 className="text-sm sm:text-base md:text-lg font-black tracking-wider uppercase text-slate-900 font-display">
+                NER LOGISTICS MISSION CONTROL
+              </h1>
+              <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md text-[9px] font-black tracking-wider bg-slate-900 text-white uppercase shadow-2xs">
+                HQ GUWAHATI
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              Real-time accessibility, hazard & convoy intelligence
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 flex-wrap">
+            {/* Live Monitoring Indicator */}
+            <div
+              data-testid="live-monitoring-indicator"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-2xs"
+            >
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <span>● LIVE MONITORING</span>
+            </div>
+
+            {/* Small live browser date/time display */}
+            <div
+              data-testid="browser-datetime-display"
+              className="inline-flex items-center gap-2 px-2.5 py-1 rounded-xl text-xs font-medium bg-white/90 border border-slate-200/90 text-slate-700 shadow-2xs"
+            >
+              <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0 hidden sm:inline" />
+              <span className="font-semibold text-slate-700">{formattedDate}</span>
+              <span className="text-slate-300">|</span>
+              <span className="font-mono font-bold text-slate-900">{formattedTime}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* RouteX System Status Bar: Compact, glanceable live health indicator */}
+        <RouteXSystemStatusBar />
+
+        {/* Top metrics bar: Visually prominent, professional RouteX KPI cards */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5 shrink-0">
-          {authorityStats.map((s, idx) => {
-            const labels = [t("stat_convoys"), t("stat_incidents"), t("stat_blocked"), t("stat_reach")];
-            const displayLabel = labels[idx] || s.label;
-            const displayValue = idx === 2 ? String(blockedCorridorsCount) : idx === 1 ? String(11 + supabaseIncidents.length) : s.value;
-            return (
-              <div
-                key={s.label}
-                className="glass rounded-xl px-3.5 py-1.5 sm:py-2 flex items-center justify-between shadow-sm"
-              >
-                <div>
-                  <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-muted-foreground leading-snug truncate">
-                    {displayLabel}
-                  </p>
-                  <p className="font-display text-xl sm:text-2xl font-bold text-foreground tracking-tight leading-tight">
-                    {displayValue}
-                  </p>
-                </div>
+          {/* Active Convoys: 12 */}
+          <div className="glass rounded-2xl p-2.5 sm:px-3.5 sm:py-2.5 bg-white/95 border border-slate-200/90 shadow-xs flex items-center justify-between gap-2.5 hover:border-slate-300 transition-all select-text">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 truncate">
+                  Active Convoys
+                </span>
+                <span className="hidden xl:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold tracking-tight bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Live GPS
+                </span>
               </div>
-            );
-          })}
+              <div className="flex items-baseline gap-2">
+                <span className="font-display text-2xl sm:text-3xl font-black tracking-tight leading-none text-slate-900">
+                  12
+                </span>
+                <span className="xl:hidden inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold tracking-tight bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Live GPS
+                </span>
+                <span className="hidden 2xl:inline text-[10px] font-medium text-slate-400 truncate">
+                  8 states monitored
+                </span>
+              </div>
+            </div>
+            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl flex items-center justify-center shrink-0 border border-blue-100 bg-blue-50 text-blue-600 shadow-2xs">
+              <Truck className="h-4 w-4 sm:h-5 sm:w-5" />
+            </div>
+          </div>
+
+          {/* Critical Hazards: 3 */}
+          <div className="glass rounded-2xl p-2.5 sm:px-3.5 sm:py-2.5 bg-white/95 border border-slate-200/90 shadow-xs flex items-center justify-between gap-2.5 hover:border-slate-300 transition-all select-text">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 truncate">
+                  Critical Hazards
+                </span>
+                <span className="hidden xl:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold tracking-tight bg-rose-50 text-rose-700 border border-rose-200 shrink-0">
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse" />
+                  High Alert
+                </span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="font-display text-2xl sm:text-3xl font-black tracking-tight leading-none text-rose-600">
+                  3
+                </span>
+                <span className="xl:hidden inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold tracking-tight bg-rose-50 text-rose-700 border border-rose-200 shrink-0">
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse" />
+                  High Alert
+                </span>
+                <span className="hidden 2xl:inline text-[10px] font-medium text-slate-400 truncate">
+                  Immediate action
+                </span>
+              </div>
+            </div>
+            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl flex items-center justify-center shrink-0 border border-rose-100 bg-rose-50 text-rose-600 shadow-2xs">
+              <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5" />
+            </div>
+          </div>
+
+          {/* Blocked Corridors: 2 */}
+          <div className="glass rounded-2xl p-2.5 sm:px-3.5 sm:py-2.5 bg-white/95 border border-slate-200/90 shadow-xs flex items-center justify-between gap-2.5 hover:border-slate-300 transition-all select-text">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 truncate">
+                  Blocked Corridors
+                </span>
+                <span
+                  className={`hidden xl:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold tracking-tight border shrink-0 ${
+                    isNh6Authorized
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : "bg-amber-50 text-amber-800 border-amber-200"
+                  }`}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                      isNh6Authorized ? "bg-emerald-500" : "bg-amber-500 animate-pulse"
+                    }`}
+                  />
+                  {isNh6Authorized ? "Reroute Active" : "Action Needed"}
+                </span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="font-display text-2xl sm:text-3xl font-black tracking-tight leading-none text-slate-900">
+                  {blockedCorridorsCount}
+                </span>
+                <span
+                  className={`xl:hidden inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold tracking-tight border shrink-0 ${
+                    isNh6Authorized
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                      : "bg-amber-50 text-amber-800 border-amber-200"
+                  }`}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                      isNh6Authorized ? "bg-emerald-500" : "bg-amber-500 animate-pulse"
+                    }`}
+                  />
+                  {isNh6Authorized ? "Reroute Active" : "Action Needed"}
+                </span>
+                <span className="hidden 2xl:inline text-[10px] font-medium text-slate-400 truncate">
+                  {isNh6Authorized ? "NH-6 diverted" : "NH-6 & NH-108"}
+                </span>
+              </div>
+            </div>
+            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl flex items-center justify-center shrink-0 border border-amber-100 bg-amber-50 text-amber-700 shadow-2xs">
+              <ShieldAlert className="h-4 w-4 sm:h-5 sm:w-5" />
+            </div>
+          </div>
+
+          {/* Weather Risk: HIGH */}
+          <div className="glass rounded-2xl p-2.5 sm:px-3.5 sm:py-2.5 bg-white/95 border border-slate-200/90 shadow-xs flex items-center justify-between gap-2.5 hover:border-slate-300 transition-all select-text">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-500 truncate">
+                  Weather Risk
+                </span>
+                <span className="hidden xl:inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold tracking-tight bg-rose-50 text-rose-700 border border-rose-200 shrink-0">
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse" />
+                  Monsoon Watch
+                </span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="font-display text-2xl sm:text-3xl font-black tracking-tight leading-none text-rose-600">
+                  HIGH
+                </span>
+                <span className="xl:hidden inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold tracking-tight bg-rose-50 text-rose-700 border border-rose-200 shrink-0">
+                  <span className="h-1.5 w-1.5 rounded-full bg-rose-500 animate-pulse" />
+                  Monsoon Watch
+                </span>
+                <span className="hidden 2xl:inline text-[10px] font-medium text-slate-400 truncate">
+                  Rainfall advisory
+                </span>
+              </div>
+            </div>
+            <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl flex items-center justify-center shrink-0 border border-indigo-100 bg-indigo-50 text-indigo-600 shadow-2xs">
+              <CloudRain className="h-4 w-4 sm:h-5 sm:w-5" />
+            </div>
+          </div>
         </div>
 
         {/* Desktop 3-Column Command Layout: Visual Center is Large Real NER Google Map */}
         <div className="mt-2 flex-1 min-h-0 min-w-0 hidden lg:grid gap-2.5 lg:grid-cols-[17.5rem_minmax(0,1fr)_18.5rem] xl:grid-cols-[19.5rem_minmax(0,1fr)_20.5rem] items-stretch overflow-hidden">
-          {/* Left Column: Active Alerts & Open Incidents */}
-          <div className="h-full min-h-0 flex flex-col gap-2.5 overflow-hidden">
-            {/* Active Alerts Panel */}
-            <section className="glass rounded-2xl flex flex-col flex-1 min-h-0 overflow-hidden shadow-sm">
-              <header className="flex items-center justify-between gap-2 border-b border-border/70 px-3.5 py-2 shrink-0 bg-white/60">
-                <div className="flex items-center gap-2">
+          {/* Left Column: Active Alerts, Live Operations Timeline & Open Incidents */}
+          <div className="h-full min-h-0 flex flex-col gap-2 overflow-hidden">
+            {/* Emergency Response Panel */}
+            <section className="glass rounded-2xl flex flex-col flex-[1.02] min-h-0 overflow-hidden shadow-sm">
+              <header className="flex items-center justify-between gap-2 border-b border-border/70 px-3 py-1.5 shrink-0 bg-white/60">
+                <div className="flex items-center gap-1.5">
                   <span
                     className="h-2 w-2 rounded-full animate-pulse"
                     style={{ backgroundColor: "var(--status-blocked)" }}
                   />
                   <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                    Active Alerts
+                    Emergency Response
                   </h2>
                 </div>
-                <span className="glass-soft rounded-full px-2 py-0.5 text-[10px] font-bold text-primary">
-                  {STATIC_DEMO_ALERTS.length} active
+                <span className="glass-soft rounded-full px-2 py-0.5 text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200">
+                  {EMERGENCY_SITUATIONS.length} active
                 </span>
               </header>
               <div className="flex-1 min-h-0 overflow-y-auto p-1 scrollbar-thin">
-                <AlertsList
-                  demoAlerts={STATIC_DEMO_ALERTS}
-                  authorizedAlertIds={authorizedAlertIds}
-                  onAuthorizeReroute={handleAuthorizeReroute}
-                  onSelectRoad={(r) => setHighlightedRoadId(r)}
+                <EmergencyResponseList
+                  situations={EMERGENCY_SITUATIONS}
+                  isNh6Authorized={isNh6Authorized}
+                  onAuthorize={handleAuthorizeReroute}
+                  onViewDetails={(corridorId) => {
+                    setHighlightedRoadId(corridorId);
+                    setDrawerOpen(true);
+                  }}
                 />
               </div>
             </section>
 
+            {/* Live Operations Timeline Section */}
+            <section
+              data-testid="live-operations-timeline-section"
+              className="glass rounded-2xl flex flex-col flex-[1.08] min-h-0 overflow-hidden shadow-sm"
+            >
+              <header className="flex items-center justify-between gap-2 border-b border-border/70 px-3 py-1.5 shrink-0 bg-white/60">
+                <div className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                    Live Operations Timeline
+                  </h2>
+                </div>
+                <span className="glass-soft rounded-full px-2 py-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200">
+                  {LIVE_OPERATIONS_TIMELINE.length} events
+                </span>
+              </header>
+              <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
+                <LiveOperationsTimelineList />
+              </div>
+            </section>
+
             {/* Open Incidents Panel */}
-            <section className="glass rounded-2xl flex flex-col flex-1 min-h-0 overflow-hidden shadow-sm">
-              <header className="flex items-center justify-between gap-2 border-b border-border/70 px-3.5 py-2 shrink-0 bg-white/60">
-                <div className="flex items-center gap-2">
+            <section className="glass rounded-2xl flex flex-col flex-[0.7] min-h-0 overflow-hidden shadow-sm">
+              <header className="flex items-center justify-between gap-2 border-b border-border/70 px-3 py-1.5 shrink-0 bg-white/60">
+                <div className="flex items-center gap-1.5">
                   <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
                   <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">
                     Open Incidents
@@ -620,22 +1439,53 @@ function AuthorityDashboard() {
             </section>
           </div>
 
-          {/* Center Column: Large Real NER Google Map (Visual Center) */}
-          <div className="h-full min-h-0 min-w-0 flex flex-col rounded-2xl overflow-hidden shadow-lg border border-border/80">
-            <AuthorityMap
-              highlightedRoadId={highlightedRoadId}
-              blockedRoadIds={blockedRoadIds}
-              liveIncidents={supabaseIncidents}
-              onFocusCorridor={(c) => setHighlightedRoadId(c)}
+          {/* Center Column: Large Real NER Google Map (Visual Center) + AI Recommendation Card */}
+          <div className="h-full min-h-0 min-w-0 flex flex-col gap-2.5 overflow-hidden">
+            <div className="flex-1 min-h-0 min-w-0 rounded-2xl overflow-hidden shadow-lg border border-border/80">
+              <AuthorityMap
+                highlightedRoadId={highlightedRoadId}
+                blockedRoadIds={blockedRoadIds}
+                liveIncidents={supabaseIncidents}
+                onFocusCorridor={(c) => setHighlightedRoadId(c)}
+              />
+            </div>
+            <AiDecisionSupportSection
+              isAuthorized={isNh6Authorized}
+              onAuthorize={() => handleAuthorizeReroute("demo-alert-nh6")}
+              onReviewRoute={() => {
+                setHighlightedRoadId("nh6");
+                setDrawerOpen(true);
+              }}
             />
           </div>
 
-          {/* Right Column: Dedicated Weather & Regional Risk + Deliveries Impact */}
-          <div className="h-full min-h-0 flex flex-col gap-2.5 overflow-hidden">
+          {/* Right Column: NER Regional Connectivity + Weather & Regional Risk + Critical Logistics */}
+          <div className="h-full min-h-0 flex flex-col gap-2 overflow-hidden">
+            {/* NER Regional Connectivity Section */}
+            <section
+              data-testid="ner-regional-connectivity-section"
+              className="glass rounded-2xl flex flex-col flex-[1.15] min-h-0 overflow-hidden shadow-sm"
+            >
+              <header className="flex items-center justify-between gap-2 border-b border-border/70 px-3 py-1.5 shrink-0 bg-white/60">
+                <div className="flex items-center gap-1.5">
+                  <Activity className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                    NER Regional Connectivity
+                  </h2>
+                </div>
+                <span className="glass-soft rounded-full px-2 py-0.5 text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-200">
+                  8 States
+                </span>
+              </header>
+              <div className="flex-1 min-h-0 overflow-y-auto scrollbar-thin">
+                <NerRegionalConnectivityList onSelectRoad={(r) => setHighlightedRoadId(r)} />
+              </div>
+            </section>
+
             {/* Dedicated Weather & Regional Risk Section */}
-            <section className="glass rounded-2xl flex flex-col flex-1 min-h-0 overflow-hidden shadow-sm">
-              <header className="flex items-center justify-between gap-2 border-b border-border/70 px-3.5 py-2 shrink-0 bg-white/60">
-                <div className="flex items-center gap-2">
+            <section className="glass rounded-2xl flex flex-col flex-[0.75] min-h-0 overflow-hidden shadow-sm">
+              <header className="flex items-center justify-between gap-2 border-b border-border/70 px-3 py-1.5 shrink-0 bg-white/60">
+                <div className="flex items-center gap-1.5">
                   <CloudRain className="h-3.5 w-3.5 text-blue-500 shrink-0" />
                   <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">
                     Weather & Regional Risk
@@ -650,21 +1500,21 @@ function AuthorityDashboard() {
               </div>
             </section>
 
-            {/* Deliveries & Logistics Impact Panel */}
-            <section className="glass rounded-2xl flex flex-col flex-1 min-h-0 overflow-hidden shadow-sm">
-              <header className="flex items-center justify-between gap-2 border-b border-border/70 px-3.5 py-2 shrink-0 bg-white/60">
-                <div className="flex items-center gap-2">
-                  <Truck className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+            {/* Critical Logistics Panel */}
+            <section className="glass rounded-2xl flex flex-col flex-[1.1] min-h-0 overflow-hidden shadow-sm">
+              <header className="flex items-center justify-between gap-2 border-b border-border/70 px-3 py-1.5 shrink-0 bg-white/60">
+                <div className="flex items-center gap-1.5">
+                  <Package className="h-3.5 w-3.5 text-primary shrink-0" />
                   <h2 className="text-xs font-bold uppercase tracking-wider text-foreground">
-                    Deliveries Impact
+                    Critical Logistics
                   </h2>
                 </div>
-                <span className="glass-soft rounded-full px-2 py-0.5 text-[10px] font-bold text-emerald-800 bg-emerald-50">
-                  {affectedDeliveries.length} tracked
+                <span className="glass-soft rounded-full px-2 py-0.5 text-[10px] font-bold text-primary bg-primary/10">
+                  {CRITICAL_DELIVERIES.length} active
                 </span>
               </header>
               <div className="flex-1 min-h-0 overflow-y-auto p-1 scrollbar-thin">
-                <DeliveriesList />
+                <CriticalLogisticsList />
               </div>
             </section>
           </div>
@@ -682,66 +1532,104 @@ function AuthorityDashboard() {
             />
           </div>
 
+          <AiDecisionSupportSection
+            isAuthorized={isNh6Authorized}
+            onAuthorize={() => handleAuthorizeReroute("demo-alert-nh6")}
+            onReviewRoute={() => {
+              setHighlightedRoadId("nh6");
+              setDrawerOpen(true);
+            }}
+          />
+
           {/* Tab Switcher for Mobile */}
-          <div className="glass-soft rounded-xl p-1 grid grid-cols-4 gap-1 shrink-0">
+          <div className="glass-soft rounded-xl p-1 grid grid-cols-6 gap-1 shrink-0">
             <button
               type="button"
-              onClick={() => setMobileTab("alerts")}
-              className={`rounded-lg py-1.5 px-1 text-[11px] font-bold transition-all text-center truncate ${
-                mobileTab === "alerts"
+              onClick={() => setMobileTab("emergency")}
+              className={`rounded-lg py-1.5 px-0.5 text-[9.5px] font-bold transition-all text-center truncate ${
+                mobileTab === "emergency" || mobileTab === "alerts"
                   ? "bg-primary text-white shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              Alerts ({STATIC_DEMO_ALERTS.length})
+              Alerts ({EMERGENCY_SITUATIONS.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileTab("timeline")}
+              className={`rounded-lg py-1.5 px-0.5 text-[9.5px] font-bold transition-all text-center truncate ${
+                mobileTab === "timeline"
+                  ? "bg-primary text-white shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Timeline
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileTab("connectivity")}
+              className={`rounded-lg py-1.5 px-0.5 text-[9.5px] font-bold transition-all text-center truncate ${
+                mobileTab === "connectivity"
+                  ? "bg-primary text-white shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              States (8)
             </button>
             <button
               type="button"
               onClick={() => setMobileTab("weather")}
-              className={`rounded-lg py-1.5 px-1 text-[11px] font-bold transition-all text-center truncate ${
+              className={`rounded-lg py-1.5 px-0.5 text-[9.5px] font-bold transition-all text-center truncate ${
                 mobileTab === "weather"
                   ? "bg-primary text-white shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              Weather ({weatherSummary.length})
+              Weather
             </button>
             <button
               type="button"
               onClick={() => setMobileTab("deliveries")}
-              className={`rounded-lg py-1.5 px-1 text-[11px] font-bold transition-all text-center truncate ${
+              className={`rounded-lg py-1.5 px-0.5 text-[9.5px] font-bold transition-all text-center truncate ${
                 mobileTab === "deliveries"
                   ? "bg-primary text-white shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              Deliveries ({affectedDeliveries.length})
+              Logistics
             </button>
             <button
               type="button"
               onClick={() => setMobileTab("incidents")}
-              className={`rounded-lg py-1.5 px-1 text-[11px] font-bold transition-all text-center truncate ${
+              className={`rounded-lg py-1.5 px-0.5 text-[9.5px] font-bold transition-all text-center truncate ${
                 mobileTab === "incidents"
                   ? "bg-primary text-white shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              Incidents ({incidents.length})
+              Logs ({incidents.length})
             </button>
           </div>
 
           {/* Active Tab Panel on Mobile */}
           <div className="glass rounded-2xl p-2 shadow-sm min-h-[220px]">
-            {mobileTab === "alerts" && (
-              <AlertsList
-                demoAlerts={STATIC_DEMO_ALERTS}
-                authorizedAlertIds={authorizedAlertIds}
-                onAuthorizeReroute={handleAuthorizeReroute}
-                onSelectRoad={(r) => setHighlightedRoadId(r)}
+            {(mobileTab === "emergency" || mobileTab === "alerts") && (
+              <EmergencyResponseList
+                situations={EMERGENCY_SITUATIONS}
+                isNh6Authorized={isNh6Authorized}
+                onAuthorize={handleAuthorizeReroute}
+                onViewDetails={(corridorId) => {
+                  setHighlightedRoadId(corridorId);
+                  setDrawerOpen(true);
+                }}
               />
             )}
+            {mobileTab === "timeline" && <LiveOperationsTimelineList />}
+            {mobileTab === "connectivity" && (
+              <NerRegionalConnectivityList onSelectRoad={(r) => setHighlightedRoadId(r)} />
+            )}
             {mobileTab === "weather" && <WeatherList />}
-            {mobileTab === "deliveries" && <DeliveriesList />}
+            {mobileTab === "deliveries" && <CriticalLogisticsList />}
             {mobileTab === "incidents" && <IncidentsList supabaseIncidents={supabaseIncidents} />}
           </div>
         </div>
